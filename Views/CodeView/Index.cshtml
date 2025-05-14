@@ -1,0 +1,346 @@
+﻿@model List<CodeSnippet>
+@{
+    ViewData["Title"] = "Code Snippets";
+    
+    var selectedLanguage = Context.Request.Query["language"].ToString();
+    var selectedTag = Context.Request.Query["tag"].ToString();
+    var searchTerm = Context.Request.Query["searchTerm"].ToString();
+}
+
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex align-items-center justify-content-between mb-4">
+                <div>
+                    <h2 class="mb-1">Code Snippets Repository</h2>
+                    <p class="text-muted">Browse, search, and manage your code snippets collection</p>
+                </div>
+                <div>
+                    <a asp-controller="CodeView" asp-action="Create" class="btn btn-primary">
+                        <i class="bi bi-plus-lg me-2"></i>Add New Snippet
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Sidebar with filters -->
+        <div class="col-lg-3 mb-4">
+            <div class="card shadow-sm border-0 rounded-4">
+                <div class="card-header bg-gradient p-3" style="background: linear-gradient(135deg, #4e54c8, #8f94fb);">
+                    <h5 class="m-0 text-white"><i class="bi bi-funnel me-2"></i>Filters</h5>
+                </div>
+                <div class="card-body">
+                    <form asp-controller="CodeView" asp-action="Index" method="get" id="filterForm">
+                        <!-- Language filter -->
+                        <div class="mb-3">
+                            <label class="form-label">Programming Language</label>
+                            <select class="form-select" name="language" id="languageFilter">
+                                <option value="">All Languages</option>
+                                <option value="JavaScript" @(selectedLanguage == "JavaScript" ? "selected" : "")>JavaScript</option>
+                                <option value="TypeScript" @(selectedLanguage == "TypeScript" ? "selected" : "")>TypeScript</option>
+                                <option value="Python" @(selectedLanguage == "Python" ? "selected" : "")>Python</option>
+                                <option value="C#" @(selectedLanguage == "C#" ? "selected" : "")>C#</option>
+                                <option value="Java" @(selectedLanguage == "Java" ? "selected" : "")>Java</option>
+                                <option value="SQL" @(selectedLanguage == "SQL" ? "selected" : "")>SQL</option>
+                                <option value="HTML" @(selectedLanguage == "HTML" ? "selected" : "")>HTML</option>
+                                <option value="CSS" @(selectedLanguage == "CSS" ? "selected" : "")>CSS</option>
+                                <option value="PHP" @(selectedLanguage == "PHP" ? "selected" : "")>PHP</option>
+                                <option value="Ruby" @(selectedLanguage == "Ruby" ? "selected" : "")>Ruby</option>
+                                <option value="Go" @(selectedLanguage == "Go" ? "selected" : "")>Go</option>
+                                <option value="Rust" @(selectedLanguage == "Rust" ? "selected" : "")>Rust</option>
+                                <option value="Swift" @(selectedLanguage == "Swift" ? "selected" : "")>Swift</option>
+                                <option value="Kotlin" @(selectedLanguage == "Kotlin" ? "selected" : "")>Kotlin</option>
+                                <option value="Shell" @(selectedLanguage == "Shell" ? "selected" : "")>Shell/Bash</option>
+                                <option value="PowerShell" @(selectedLanguage == "PowerShell" ? "selected" : "")>PowerShell</option>
+                            </select>
+                        </div>
+
+                        <!-- Popular Tags -->
+                        <div class="mb-3">
+                            <label class="form-label">Popular Tags</label>
+                            <div class="d-flex flex-wrap gap-1">
+                                <a href="#" class="code-tag @(selectedTag == "algorithm" ? "bg-primary text-white" : "")" data-tag="algorithm">algorithm</a>
+                                <a href="#" class="code-tag @(selectedTag == "function" ? "bg-primary text-white" : "")" data-tag="function">function</a>
+                                <a href="#" class="code-tag @(selectedTag == "utility" ? "bg-primary text-white" : "")" data-tag="utility">utility</a>
+                                <a href="#" class="code-tag @(selectedTag == "api" ? "bg-primary text-white" : "")" data-tag="api">api</a>
+                                <a href="#" class="code-tag @(selectedTag == "optimization" ? "bg-primary text-white" : "")" data-tag="optimization">optimization</a>
+                                <a href="#" class="code-tag @(selectedTag == "security" ? "bg-primary text-white" : "")" data-tag="security">security</a>
+                                <a href="#" class="code-tag @(selectedTag == "design-pattern" ? "bg-primary text-white" : "")" data-tag="design-pattern">design-pattern</a>
+                            </div>
+                            <input type="hidden" name="tag" id="selectedTag" value="@selectedTag">
+                        </div>
+
+                        <!-- Sort Order -->
+                        <div class="mb-3">
+                            <label class="form-label">Sort By</label>
+                            <select class="form-select" name="sortBy" id="sortOrder">
+                                <option value="newest">Newest First</option>
+                                <option value="oldest">Oldest First</option>
+                                <option value="popular">Most Popular</option>
+                                <option value="rating">Highest Rated</option>
+                            </select>
+                        </div>
+
+                        <div class="d-grid mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-funnel-fill me-2"></i>Apply Filters
+                            </button>
+                            <button type="button" id="clearFilters" class="btn btn-outline-secondary mt-2">
+                                <i class="bi bi-x-circle me-2"></i>Clear Filters
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main content area with code snippets -->
+        <div class="col-lg-9">
+            <!-- Search Bar -->
+            <div class="card shadow-sm border-0 rounded-4 mb-4">
+                <div class="card-body">
+                    <form asp-controller="CodeView" asp-action="Index" method="get" class="d-flex">
+                        <input type="text" class="form-control me-2" name="searchTerm" placeholder="Search by title, content, or tags..." value="@searchTerm">
+                        <button type="submit" class="btn btn-primary px-4">
+                            <i class="bi bi-search me-2"></i>Search
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Code Snippets List -->
+            <div id="codeSnippetsList">
+                @if (Model != null && Model.Any())
+                {
+                    foreach (var snippet in Model)
+                    {
+                        <div class="card shadow-sm border-0 rounded-4 mb-4 snippet-card">
+                            <div class="card-header bg-white p-3 d-flex justify-content-between align-items-center">
+                                <h5 class="m-0">
+                                    <a asp-controller="CodeView" asp-action="Details" asp-route-id="@snippet.Id" class="text-decoration-none text-dark">@snippet.Title</a>
+                                </h5>
+                                <div class="lang-indicator @GetLanguageClass(snippet.Language)">@GetLanguageShortCode(snippet.Language)</div>
+                            </div>
+                            <div class="card-body">
+                                <div class="code-preview mb-3">
+                                    <pre><code class="language-@GetLanguageClass(snippet.Language).Replace("lang-", "")">@TruncateCode(snippet.Content)</code></pre>
+                                </div>
+                                @if (!string.IsNullOrEmpty(snippet.Description))
+                                {
+                                    <p class="text-muted mb-3">@TruncateText(snippet.Description, 100)</p>
+                                }
+                                <div class="d-flex flex-wrap gap-1 mb-3">
+                                    @foreach (var tag in snippet.Tags)
+                                    {
+                                        <a href="@Url.Action("Index", "CodeView", new { tag = tag })" class="code-tag">@tag</a>
+                                    }
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="text-muted small">
+                                        <i class="bi bi-clock me-1"></i> @FormatDate(snippet.CreatedAt)
+                                        <span class="ms-3"><i class="bi bi-eye me-1"></i> @snippet.ViewCount</span>
+                                    </div>
+                                    <div>
+                                        <a asp-controller="CodeView" asp-action="Details" asp-route-id="@snippet.Id" class="btn btn-sm btn-outline-primary">
+                                            <i class="bi bi-code-square me-1"></i> View
+                                        </a>
+                                        <a asp-controller="CodeView" asp-action="Edit" asp-route-id="@snippet.Id" class="btn btn-sm btn-outline-secondary ms-1">
+                                            <i class="bi bi-pencil me-1"></i> Edit
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                }
+                else
+                {
+                    <div class="text-center py-5 bg-light rounded-4 shadow-sm">
+                        <i class="bi bi-code-slash mb-3" style="font-size: 3rem; color: #ccc;"></i>
+                        <h4>No code snippets found</h4>
+                        <p class="text-muted">Try different search terms or clear your filters</p>
+                        <a asp-controller="CodeView" asp-action="Create" class="btn btn-primary mt-3">
+                            <i class="bi bi-plus-lg me-2"></i>Add New Snippet
+                        </a>
+                    </div>
+                }
+            </div>
+
+            <!-- Pagination -->
+            @if (Model != null && Model.Count > 0)
+            {
+                <nav aria-label="Code snippets pagination" class="mt-4">
+                    <ul class="pagination justify-content-center">
+                        <li class="page-item disabled">
+                            <a class="page-link" href="#" tabindex="-1" aria-disabled="true">Previous</a>
+                        </li>
+                        <li class="page-item active"><a class="page-link" href="#">1</a></li>
+                        <li class="page-item"><a class="page-link" href="#">2</a></li>
+                        <li class="page-item"><a class="page-link" href="#">3</a></li>
+                        <li class="page-item">
+                            <a class="page-link" href="#">Next</a>
+                        </li>
+                    </ul>
+                </nav>
+            }
+        </div>
+    </div>
+</div>
+
+@functions {
+    private string GetLanguageClass(string language)
+    {
+        language = language?.ToLower() ?? "txt";
+        
+        switch (language)
+        {
+            case "javascript": return "lang-js";
+            case "typescript": return "lang-ts";
+            case "python": return "lang-py";
+            case "c#": return "lang-cs";
+            case "java": return "lang-java";
+            case "php": return "lang-php";
+            case "html": return "lang-html";
+            case "css": return "lang-css";
+            case "ruby": return "lang-ruby";
+            case "go": return "lang-go";
+            case "rust": return "lang-rust";
+            case "sql": return "lang-sql";
+            case "shell":
+            case "bash": return "lang-bash";
+            default: return "lang-" + language;
+        }
+    }
+    
+    private string GetLanguageShortCode(string language)
+    {
+        language = language?.ToUpper() ?? "TXT";
+        
+        switch (language)
+        {
+            case "JAVASCRIPT": return "JS";
+            case "TYPESCRIPT": return "TS";
+            case "PYTHON": return "PY";
+            case "C#": return "C#";
+            case "JAVA": return "JV";
+            case "PHP": return "PHP";
+            case "HTML": return "HTML";
+            case "CSS": return "CSS";
+            case "RUBY": return "RB";
+            case "GO": return "GO";
+            case "RUST": return "RS";
+            case "SQL": return "SQL";
+            case "SHELL":
+            case "BASH": return "SH";
+            default: return language.Substring(0, Math.Min(3, language.Length));
+        }
+    }
+    
+    private string TruncateCode(string code)
+    {
+        if (string.IsNullOrEmpty(code))
+            return string.Empty;
+            
+        var lines = code.Split('\n');
+        if (lines.Length <= 8)
+            return code;
+            
+        return string.Join('\n', lines.Take(8)) + "\n// ... more code ...";
+    }
+    
+    private string TruncateText(string text, int maxLength)
+    {
+        if (string.IsNullOrEmpty(text) || text.Length <= maxLength)
+            return text;
+            
+        return text.Substring(0, maxLength) + "...";
+    }
+    
+    private string FormatDate(DateTime date)
+    {
+        var timeSpan = DateTime.Now - date;
+        
+        if (timeSpan.TotalDays < 1)
+        {
+            if (timeSpan.TotalHours < 1)
+                return $"{(int)timeSpan.TotalMinutes} min ago";
+            else
+                return $"{(int)timeSpan.TotalHours} hours ago";
+        }
+        else if (timeSpan.TotalDays < 7)
+        {
+            return $"{(int)timeSpan.TotalDays} days ago";
+        }
+        else
+        {
+            return date.ToString("MMM d, yyyy");
+        }
+    }
+}
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Initialize syntax highlighting for code blocks
+            document.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightBlock(block);
+            });
+            
+            // Language filter change event
+            $('#languageFilter').change(function() {
+                if ($(this).val()) {
+                    $('#filterForm').submit();
+                }
+            });
+            
+            // Tag click event
+            $('.code-tag').click(function(e) {
+                e.preventDefault();
+                var tag = $(this).data('tag');
+                $('#selectedTag').val(tag);
+                $('#filterForm').submit();
+            });
+            
+            // Clear filters
+            $('#clearFilters').click(function() {
+                window.location.href = '@Url.Action("Index", "CodeView")';
+            });
+        });
+    </script>
+    
+    <style>
+        .code-preview {
+            max-height: 250px;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        .code-preview pre {
+            margin: 0;
+            padding: 0;
+            background-color: #1e1e1e;
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+        
+        .code-preview pre code {
+            display: block;
+            padding: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            overflow-x: auto;
+        }
+        
+        .snippet-card {
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+        
+        .snippet-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1) !important;
+        }
+    </style>
+}

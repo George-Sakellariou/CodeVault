@@ -1,0 +1,53 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: codevault-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: securepass123!
+      POSTGRES_USER: codevault-user
+      POSTGRES_DB: code_vault
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      - codevault-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U codevault-user -d code_vault"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: >
+      bash -c "
+      apt-get update &&
+      apt-get install -y postgresql-16-pgvector &&
+      docker-entrypoint.sh postgres
+      "
+      
+  codevault:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: codevault-web
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - OpenAI__ApiKey=${OPENAI_API_KEY}
+      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=code_vault;Username=codevault-user;Password=securepass123!
+    ports:
+      - "8080:8080"  
+      - "8081:8081"
+    networks:
+      - codevault-network
+
+networks:
+  codevault-network:
+    driver: bridge
+
+volumes:
+  postgres-data:

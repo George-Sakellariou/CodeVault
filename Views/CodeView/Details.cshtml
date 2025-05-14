@@ -1,0 +1,679 @@
+﻿@model CodeSnippet
+@{
+    ViewData["Title"] = Model?.Title ?? "Code Snippet Details";
+}
+
+<div class="container py-4">
+    @if (Model != null)
+    {
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a asp-controller="Home" asp-action="Index">Home</a></li>
+                        <li class="breadcrumb-item"><a asp-controller="CodeView" asp-action="Index">Code Snippets</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">@Model.Title</li>
+                    </ol>
+                </nav>
+                <h1 class="mt-2">@Model.Title</h1>
+                <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                    <div class="lang-indicator @GetLanguageClass(Model.Language)">@Model.Language</div>
+                    <span class="text-muted ms-2">
+                        <i class="bi bi-clock me-1"></i> Created @FormatDate(Model.CreatedAt)
+                    </span>
+                    @if (Model.UpdatedAt.HasValue)
+                    {
+                        <span class="text-muted ms-2">
+                            <i class="bi bi-pencil me-1"></i> Updated @FormatDate(Model.UpdatedAt.Value)
+                        </span>
+                    }
+                </div>
+            </div>
+            <div class="col-md-4 text-md-end">
+                <div class="btn-group">
+                    <a asp-controller="CodeView" asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-outline-primary">
+                        <i class="bi bi-pencil me-2"></i>Edit
+                    </a>
+                    <button type="button" class="btn btn-outline-primary dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                        <span class="visually-hidden">Toggle Dropdown</span>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <a class="dropdown-item" href="#" id="copyToClipboard">
+                                <i class="bi bi-clipboard me-2"></i>Copy to Clipboard
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#shareModal">
+                                <i class="bi bi-share me-2"></i>Share
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item text-danger" href="#" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                                <i class="bi bi-trash me-2"></i>Delete
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-8">
+                <!-- Code Content -->
+                <div class="card shadow-sm border-0 rounded-4 mb-4">
+                    <div class="card-header bg-white p-3 d-flex justify-content-between align-items-center">
+                        <h5 class="m-0"><i class="bi bi-code-square me-2"></i>Code</h5>
+                        <div>
+                            <button id="copyCodeBtn" class="btn btn-sm btn-outline-secondary" data-bs-toggle="tooltip" data-bs-title="Copy code">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                            <button id="expandCodeBtn" class="btn btn-sm btn-outline-secondary ms-1" data-bs-toggle="tooltip" data-bs-title="Expand code">
+                                <i class="bi bi-arrows-angle-expand"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <pre><code class="language-@GetLanguageClass(Model.Language).Replace("lang-", "")">@Model.Content</code></pre>
+                    </div>
+                </div>
+
+                <!-- Description -->
+                @if (!string.IsNullOrEmpty(Model.Description))
+                {
+                    <div class="card shadow-sm border-0 rounded-4 mb-4">
+                        <div class="card-header bg-white p-3">
+                            <h5 class="m-0"><i class="bi bi-info-circle me-2"></i>Description</h5>
+                        </div>
+                        <div class="card-body">
+                            @Model.Description
+                        </div>
+                    </div>
+                }
+
+                <!-- Performance Metrics -->
+                @if (ViewBag.PerformanceMetrics != null && ((List<CodePerformanceMetric>)ViewBag.PerformanceMetrics).Any())
+                {
+                    <div class="card shadow-sm border-0 rounded-4 mb-4">
+                        <div class="card-header bg-white p-3">
+                            <h5 class="m-0"><i class="bi bi-speedometer2 me-2"></i>Performance Metrics</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-striped">
+                                    <thead>
+                                        <tr>
+                                            <th>Metric</th>
+                                            <th>Value</th>
+                                            <th>Environment</th>
+                                            <th>Notes</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var metric in (List<CodePerformanceMetric>)ViewBag.PerformanceMetrics)
+                                        {
+                                            <tr>
+                                                <td>@metric.MetricName</td>
+                                                <td>
+                                                    @metric.MetricValue
+                                                    @if (!string.IsNullOrEmpty(metric.Unit))
+                                                    {
+                                                        <small class="text-muted">@metric.Unit</small>
+                                                    }
+                                                </td>
+                                                <td>@(string.IsNullOrEmpty(metric.Environment) ? "-" : metric.Environment)</td>
+                                                <td>@(string.IsNullOrEmpty(metric.Notes) ? "-" : metric.Notes)</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <!-- Security Scan Results -->
+                @if (ViewBag.SecurityScan != null)
+                {
+                    var scan = (CodeSecurityScan)ViewBag.SecurityScan;
+                    <div class="card shadow-sm border-0 rounded-4 mb-4">
+                        <div class="card-header bg-white p-3">
+                            <h5 class="m-0"><i class="bi bi-shield-lock me-2"></i>Security Scan</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between mb-3">
+                                <span>
+                                    <strong>Last Scanned:</strong> @scan.ScanDate.ToString("MMM d, yyyy")
+                                </span>
+                                <span>
+                                    <strong>Scanner:</strong> @scan.Scanner
+                                </span>
+                            </div>
+                            
+                            @if (scan.SecurityScore.HasValue)
+                            {
+                                <div class="mb-3">
+                                    <strong>Security Score:</strong>
+                                    <div class="progress mt-2" style="height: 10px;">
+                                        <div class="progress-bar @GetSecurityBarClass(scan.SecurityScore.Value)" role="progressbar" style="width: @scan.SecurityScore%;"></div>
+                                    </div>
+                                </div>
+                            }
+                            
+                            <div class="d-flex mb-3 flex-wrap gap-2">
+                                <div class="badge bg-danger">Critical: @scan.CriticalIssues</div>
+                                <div class="badge bg-warning text-dark">High: @scan.HighIssues</div>
+                                <div class="badge bg-primary">Medium: @scan.MediumIssues</div>
+                                <div class="badge bg-info text-dark">Low: @scan.LowIssues</div>
+                            </div>
+                            
+                            @if (scan.Findings.Any())
+                            {
+                                <div class="mt-4">
+                                    <h6>Issues Found:</h6>
+                                    <div class="accordion" id="securityAccordion">
+                                        @foreach (var finding in scan.Findings)
+                                        {
+                                            <div class="accordion-item border-0 mb-2 shadow-sm">
+                                                <h2 class="accordion-header">
+                                                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#finding_@finding.Id">
+                                                        <span class="badge @GetSeverityBadgeClass(finding.Severity) me-2">@finding.Severity</span>
+                                                        @finding.Title
+                                                    </button>
+                                                </h2>
+                                                <div id="finding_@finding.Id" class="accordion-collapse collapse" data-bs-parent="#securityAccordion">
+                                                    <div class="accordion-body">
+                                                        <p>@finding.Description</p>
+                                                        
+                                                        @if (!string.IsNullOrEmpty(finding.CodeSnippet))
+                                                        {
+                                                            <pre><code>@finding.CodeSnippet</code></pre>
+                                                        }
+                                                        
+                                                        @if (!string.IsNullOrEmpty(finding.Recommendation))
+                                                        {
+                                                            <div class="mt-3">
+                                                                <strong>Recommendation:</strong>
+                                                                <p>@finding.Recommendation</p>
+                                                            </div>
+                                                        }
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="alert alert-success">
+                                    <i class="bi bi-check-circle me-2"></i> No security issues found in this code snippet.
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+            
+            <div class="col-lg-4">
+                <!-- Metadata Card -->
+                <div class="card shadow-sm border-0 rounded-4 mb-4">
+                    <div class="card-header bg-white p-3">
+                        <h5 class="m-0"><i class="bi bi-info-square me-2"></i>Details</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <strong>Language:</strong>
+                            <div class="mt-1">
+                                <div class="lang-indicator @GetLanguageClass(Model.Language)">@Model.Language</div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <strong>Tags:</strong>
+                            <div class="d-flex flex-wrap gap-1 mt-1">
+                                @foreach (var tag in Model.Tags)
+                                {
+                                    <a href="@Url.Action("Index", "CodeView", new { tag = tag })" class="code-tag">@tag</a>
+                                }
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <strong>Stats:</strong>
+                            <ul class="list-unstyled mt-1">
+                                <li><i class="bi bi-eye me-2"></i> @Model.ViewCount views</li>
+                                <li><i class="bi bi-arrow-repeat me-2"></i> @Model.UsageCount uses</li>
+                                <li>
+                                    <i class="bi bi-star me-2"></i> 
+                                    @if (Model.RatingCount > 0)
+                                    {
+                                        <span>@Model.Rating.ToString("F1")/5 (@Model.RatingCount @(Model.RatingCount == 1 ? "rating" : "ratings"))</span>
+                                    }
+                                    else
+                                    {
+                                        <span>No ratings yet</span>
+                                    }
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Rate This Snippet -->
+                <div class="card shadow-sm border-0 rounded-4 mb-4">
+                    <div class="card-header bg-white p-3">
+                        <h5 class="m-0"><i class="bi bi-star me-2"></i>Rate This Snippet</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-center">
+                            <div class="rating">
+                                <input type="radio" id="star5" name="rating" value="5" /><label for="star5"></label>
+                                <input type="radio" id="star4" name="rating" value="4" /><label for="star4"></label>
+                                <input type="radio" id="star3" name="rating" value="3" /><label for="star3"></label>
+                                <input type="radio" id="star2" name="rating" value="2" /><label for="star2"></label>
+                                <input type="radio" id="star1" name="rating" value="1" /><label for="star1"></label>
+                            </div>
+                        </div>
+                        <button id="submitRatingBtn" class="btn btn-primary w-100 mt-3">Submit Rating</button>
+                    </div>
+                </div>
+
+                <!-- Related Snippets -->
+                @if (ViewBag.RelatedSnippets != null && ((List<CodeSnippet>)ViewBag.RelatedSnippets).Any())
+                {
+                    <div class="card shadow-sm border-0 rounded-4 mb-4">
+                        <div class="card-header bg-white p-3">
+                            <h5 class="m-0"><i class="bi bi-link-45deg me-2"></i>Related Snippets</h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="list-group list-group-flush">
+                                @foreach (var related in (List<CodeSnippet>)ViewBag.RelatedSnippets)
+                                {
+                                    <a href="@Url.Action("Details", "CodeView", new { id = related.Id })" class="list-group-item list-group-item-action">
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <h6 class="mb-1">@related.Title</h6>
+                                                <small class="text-muted">@related.Language</small>
+                                            </div>
+                                            <div class="lang-indicator @GetLanguageClass(related.Language)">@GetLanguageShortCode(related.Language)</div>
+                                        </div>
+                                    </a>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-danger">
+            <i class="bi bi-exclamation-triangle me-2"></i> Code snippet not found or has been deleted.
+        </div>
+        <a asp-controller="CodeView" asp-action="Index" class="btn btn-primary">
+            <i class="bi bi-arrow-left me-2"></i>Back to Code Snippets
+        </a>
+    }
+</div>
+
+<!-- Share Modal -->
+<div class="modal fade" id="shareModal" tabindex="-1" aria-labelledby="shareModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="shareModalLabel">Share Code Snippet</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Share Link</label>
+                    <div class="input-group">
+                        <input type="text" id="shareLink" class="form-control" value="@($"{Context.Request.Scheme}://{Context.Request.Host}{Context.Request.Path}")" readonly>
+                        <button class="btn btn-outline-primary" type="button" id="copyLinkBtn">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteModalLabel">Confirm Delete</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete this code snippet? This action cannot be undone.</p>
+                <p><strong>Title:</strong> @(Model?.Title ?? "Code Snippet")</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form asp-controller="CodeView" asp-action="Delete" asp-route-id="@Model?.Id" method="post">
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Code Expand Modal -->
+<div class="modal fade" id="codeExpandModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header d-flex justify-content-between">
+                <h5 class="modal-title">@(Model?.Title ?? "Code")</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <pre class="m-0"><code class="language-@(Model?.Language?.ToLower() ?? "plaintext")">@(Model?.Content ?? "")</code></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" id="copyExpandedCodeBtn">
+                    <i class="bi bi-clipboard me-2"></i>Copy Code
+                </button>
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@functions {
+    private string GetLanguageClass(string language)
+    {
+        language = language?.ToLower() ?? "txt";
+
+        switch (language)
+        {
+            case "javascript": return "lang-js";
+            case "typescript": return "lang-ts";
+            case "python": return "lang-py";
+            case "c#": return "lang-cs";
+            case "java": return "lang-java";
+            case "php": return "lang-php";
+            case "html": return "lang-html";
+            case "css": return "lang-css";
+            case "ruby": return "lang-ruby";
+            case "go": return "lang-go";
+            case "rust": return "lang-rust";
+            case "sql": return "lang-sql";
+            case "shell":
+            case "bash": return "lang-bash";
+            default: return "lang-" + language;
+        }
+    }
+
+    private string GetLanguageShortCode(string language)
+    {
+        language = language?.ToUpper() ?? "TXT";
+
+        switch (language)
+        {
+            case "JAVASCRIPT": return "JS";
+            case "TYPESCRIPT": return "TS";
+            case "PYTHON": return "PY";
+            case "C#": return "C#";
+            case "JAVA": return "JV";
+            case "PHP": return "PHP";
+            case "HTML": return "HTML";
+            case "CSS": return "CSS";
+            case "RUBY": return "RB";
+            case "GO": return "GO";
+            case "RUST": return "RS";
+            case "SQL": return "SQL";
+            case "SHELL":
+            case "BASH": return "SH";
+            default: return language.Substring(0, Math.Min(3, language.Length));
+        }
+    }
+
+    private string FormatDate(DateTime date)
+    {
+        var timeSpan = DateTime.Now - date;
+
+        if (timeSpan.TotalDays < 1)
+        {
+            if (timeSpan.TotalHours < 1)
+                return $"{(int)timeSpan.TotalMinutes} minutes ago";
+            else
+                return $"{(int)timeSpan.TotalHours} hours ago";
+        }
+        else if (timeSpan.TotalDays < 7)
+        {
+            return $"{(int)timeSpan.TotalDays} days ago";
+        }
+        else
+        {
+            return date.ToString("MMM d, yyyy");
+        }
+    }
+
+    private string GetSecurityBarClass(int score)
+    {
+        if (score >= 90) return "bg-success";
+        if (score >= 70) return "bg-info";
+        if (score >= 50) return "bg-warning";
+        return "bg-danger";
+    }
+
+    private string GetSeverityBadgeClass(string severity)
+    {
+        switch (severity?.ToLower())
+        {
+            case "critical": return "bg-danger";
+            case "high": return "bg-warning text-dark";
+            case "medium": return "bg-primary";
+            case "low": return "bg-info text-dark";
+            default: return "bg-secondary";
+        }
+    }
+}
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Initialize syntax highlighting for code blocks
+            document.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightBlock(block);
+            });
+
+            // Initialize tooltips
+            const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+            const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
+
+            // Copy code to clipboard
+            $('#copyCodeBtn').click(function() {
+                const codeText = $('pre code').text();
+                copyToClipboard(codeText);
+
+                // Show success tooltip
+                const tooltip = bootstrap.Tooltip.getInstance('#copyCodeBtn');
+                $('#copyCodeBtn').attr('data-bs-title', 'Copied!').tooltip('show');
+
+                // Reset tooltip text after a delay
+                setTimeout(() => {
+                    $('#copyCodeBtn').attr('data-bs-title', 'Copy code');
+                }, 2000);
+            });
+
+            // Copy expanded code
+            $('#copyExpandedCodeBtn').click(function() {
+                const codeText = $('#codeExpandModal pre code').text();
+                copyToClipboard(codeText);
+
+                // Change button text temporarily
+                const originalHtml = $(this).html();
+                $(this).html('<i class="bi bi-check-lg me-2"></i>Copied!');
+
+                // Reset button text after a delay
+                setTimeout(() => {
+                    $(this).html(originalHtml);
+                }, 2000);
+            });
+
+            // Copy share link
+            $('#copyLinkBtn').click(function() {
+                const linkText = $('#shareLink').val();
+                copyToClipboard(linkText);
+
+                // Change button icon temporarily
+                const originalHtml = $(this).html();
+                $(this).html('<i class="bi bi-check-lg"></i>');
+
+                // Reset button text after a delay
+                setTimeout(() => {
+                    $(this).html(originalHtml);
+                }, 2000);
+            });
+
+            // Copy function
+            function copyToClipboard(text) {
+                navigator.clipboard.writeText(text).then(function() {
+                    console.log('Copying to clipboard was successful!');
+                }, function(err) {
+                    console.error('Could not copy text: ', err);
+
+                    // Fallback for older browsers
+                    const textArea = document.createElement("textarea");
+                    textArea.value = text;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                });
+            }
+
+            // Expand code button
+            $('#expandCodeBtn').click(function() {
+                const modal = new bootstrap.Modal(document.getElementById('codeExpandModal'));
+                modal.show();
+
+                // Re-apply syntax highlighting to modal code
+                setTimeout(() => {
+                    document.querySelectorAll('#codeExpandModal pre code').forEach((block) => {
+                        hljs.highlightBlock(block);
+                    });
+                }, 500);
+            });
+
+            // Submit rating
+            $('#submitRatingBtn').click(function() {
+                const rating = $('input[name="rating"]:checked').val();
+                if (!rating) {
+                    alert('Please select a rating');
+                    return;
+                }
+
+                $.ajax({
+                    url: '@Url.Action("AddRating", "CodeView")',
+                    type: 'POST',
+                    data: {
+                        id: @(Model?.Id ?? 0),
+                        rating: rating
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            // Show success message
+                            alert('Thank you for your rating!');
+                            // Refresh the page to show updated rating
+                            location.reload();
+                        } else {
+                            alert('Failed to submit rating: ' + response.message);
+                        }
+                    },
+                    error: function() {
+                        alert('Failed to submit rating. Please try again.');
+                    }
+                });
+            });
+        });
+    </script>
+
+    <style>
+        /* Star rating styles */
+        .rating {
+            display: inline-flex;
+            flex-direction: row-reverse;
+            font-size: 2rem;
+        }
+
+            .rating input {
+                display: none;
+            }
+
+            .rating label {
+                color: #ddd;
+                cursor: pointer;
+            }
+
+                .rating label:before {
+                    content: '★';
+                }
+
+            .rating input:checked ~ label {
+                color: #ffcc00;
+            }
+
+            .rating label:hover,
+            .rating label:hover ~ label {
+                color: #ffcc00;
+            }
+
+                .rating input:checked + label:hover,
+                .rating input:checked ~ label:hover,
+                .rating input:checked ~ label:hover ~ label,
+                .rating label:hover ~ input:checked ~ label {
+                    color: #ffcc00;
+                }
+
+        /* Code block styling */
+        pre {
+            margin: 0;
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+
+            pre code {
+                font-family: 'JetBrains Mono', monospace;
+                font-size: 0.9rem;
+                line-height: 1.5;
+            }
+
+        /* Modal code block styling */
+        #codeExpandModal pre {
+            margin: 0;
+            height: 100%;
+        }
+
+            #codeExpandModal pre code {
+                padding: 1rem;
+                height: 100%;
+                overflow-y: auto;
+            }
+
+        /* Security accordion styling */
+        #securityAccordion .accordion-button {
+            padding: 0.75rem 1rem;
+            background-color: #f8f9fa;
+        }
+
+            #securityAccordion .accordion-button:not(.collapsed) {
+                color: #0d6efd;
+                background-color: rgba(13, 110, 253, 0.1);
+            }
+
+        #securityAccordion .accordion-body {
+            padding: 1rem;
+        }
+    </style>
+}
