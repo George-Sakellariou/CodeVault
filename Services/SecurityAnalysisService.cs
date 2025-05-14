@@ -336,6 +336,28 @@ namespace CodeVault.Services
             return findings;
         }
 
+        // Get the latest security scan for a code snippet
+        public async Task<CodeSecurityScan> GetLatestScanAsync(int snippetId)
+        {
+            try
+            {
+                _logger.LogInformation($"Getting latest security scan for code snippet ID {snippetId}");
+
+                // Get the latest scan from the database
+                var scan = await _dbContext.CodeSecurityScans
+                    .Where(s => s.CodeSnippetId == snippetId)
+                    .OrderByDescending(s => s.ScanDate)
+                    .FirstOrDefaultAsync();
+
+                return scan;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting latest security scan for code snippet ID {snippetId}");
+                return null;
+            }
+        }
+
         // Check JavaScript/TypeScript security
         private List<SecurityFinding> CheckJavaScriptSecurity(string code)
         {

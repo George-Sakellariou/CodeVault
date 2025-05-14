@@ -13,7 +13,7 @@ namespace CodeVault.Data
         }
 
         public DbSet<CodeSnippet> CodeSnippets { get; set; }
-        public DbSet<Conversation> Conversations { get; set; }
+        public DbSet<Models.Conversation> Conversations { get; set; }
         public DbSet<ChatMessage> ChatMessages { get; set; }
         public DbSet<CodeEmbedding> CodeEmbeddings { get; set; }
         public DbSet<CodeTag> CodeTags { get; set; }
@@ -28,7 +28,7 @@ namespace CodeVault.Data
             modelBuilder.HasPostgresExtension("vector");
 
             // Configure the Conversation -> ChatMessage relationship
-            modelBuilder.Entity<Conversation>()
+            modelBuilder.Entity<Models.Conversation>()
                 .HasMany(c => c.Messages)
                 .WithOne(m => m.Conversation)
                 .HasForeignKey(m => m.ConversationId)

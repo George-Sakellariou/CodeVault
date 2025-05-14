@@ -153,6 +153,27 @@ namespace CodeVault.Services
             }
         }
 
+        // Get performance metrics for a code snippet
+        public async Task<List<CodePerformanceMetric>> GetMetricsAsync(int snippetId)
+        {
+            try
+            {
+                _logger.LogInformation($"Getting performance metrics for code snippet ID {snippetId}");
+
+                // Get metrics from the database
+                var metrics = await _dbContext.CodePerformanceMetrics
+                    .Where(m => m.CodeSnippetId == snippetId)
+                    .ToListAsync();
+
+                return metrics;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, $"Error getting performance metrics for code snippet ID {snippetId}");
+                return new List<CodePerformanceMetric>();
+            }
+        }
+
         // Analyze cyclomatic complexity
         public int AnalyzeCyclomaticComplexity(string code, string language)
         {
@@ -408,7 +429,7 @@ namespace CodeVault.Services
                         }
 
                         // Check for inefficient string concatenation
-                        if (CountMatches(code, @"\".*?\"\s*\+\s*\"") > 0)
+                        if (CountMatches(code, "\\\".*?\\\"\\s*\\+\\s*\\\"") > 0)
                         {
                             suggestions.Add("Use f-strings or .format() instead of string concatenation.");
                         }
