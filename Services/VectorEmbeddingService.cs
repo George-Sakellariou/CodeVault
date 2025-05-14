@@ -19,10 +19,11 @@ namespace CodeVault.Services
     {
         private readonly HttpClient _httpClient;
         private readonly string _apiKey;
-        private readonly string _apiUrl = "https://api.openai.com/v1/embeddings";
+        private readonly string _apiUrl;
         private readonly CodeDbContext _dbContext;
         private readonly ILogger<VectorEmbeddingService> _logger;
         private readonly string _connectionString;
+        private readonly string _embeddingModel;
 
         public VectorEmbeddingService(
             HttpClient httpClient,
@@ -33,29 +34,54 @@ namespace CodeVault.Services
             _httpClient = httpClient;
             _dbContext = dbContext;
             _logger = logger;
-            _connectionString = configuration.GetConnectionString("DefaultConnection");
+            _connectionString = configuration.GetConnectionString("DefaultConnection") ??
+                throw new InvalidOperationException("Connection string 'DefaultConnection' not found.");
 
             _apiKey = configuration["OpenAI:ApiKey"] ??
-                      Environment.GetEnvironmentVariable("OpenAI__ApiKey");
+                      Environment.GetEnvironmentVariable("OpenAI__ApiKey") ??
+                      throw new InvalidOperationException("OpenAI API key not found.");
 
-            if (string.IsNullOrEmpty(_apiKey))
+            // Use the Ollama embedding model if configured, otherwise default to OpenAI
+            var useOllama = configuration.GetValue<bool>("Ollama:UseForEmbeddings");
+            if (useOllama)
             {
-                throw new InvalidOperationException(
-                    "OpenAI API key is not configured. Please set the OpenAI:ApiKey in your configuration " +
-                    "or OpenAI__ApiKey environment variable.");
+                _apiUrl = configuration["Ollama:BaseUrl"] + "/embeddings";
+                _embeddingModel = configuration["Ollama:EmbeddingModel"] ?? "nomic-embed-text";
+                _logger.LogInformation($"Using Ollama for embeddings with model: {_embeddingModel}");
+            }
+            else
+            {
+                _apiUrl = "https://api.openai.com/v1/embeddings";
+                _embeddingModel = "text-embedding-3-small";
+                _logger.LogInformation($"Using OpenAI for embeddings with model: {_embeddingModel}");
             }
         }
 
-        // Get embeddings from OpenAI
         public async Task<float[]> GetEmbeddingsAsync(string text)
         {
             try
             {
-                var requestData = new
+                _logger.LogInformation($"Generating embeddings for text of length {text.Length}");
+
+                bool isOllama = _apiUrl.Contains("ollama");
+                object requestData;
+
+                if (isOllama)
                 {
-                    model = "text-embedding-ada-002",
-                    input = text
-                };
+                    requestData = new
+                    {
+                        model = _embeddingModel,
+                        prompt = text
+                    };
+                }
+                else
+                {
+                    requestData = new
+                    {
+                        model = _embeddingModel,
+                        input = text
+                    };
+                }
 
                 var content = new StringContent(
                     JsonSerializer.Serialize(requestData),
@@ -63,25 +89,66 @@ namespace CodeVault.Services
                     "application/json");
 
                 _httpClient.DefaultRequestHeaders.Clear();
-                _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
-
-                var response = await _httpClient.PostAsync(_apiUrl, content);
-                response.EnsureSuccessStatusCode();
-
-                var responseBody = await response.Content.ReadAsStringAsync();
-                var responseObject = JsonSerializer.Deserialize<JsonElement>(responseBody);
-
-                var embeddingData = responseObject
-                    .GetProperty("data")[0]
-                    .GetProperty("embedding");
-
-                var embeddings = new List<float>();
-                foreach (var value in embeddingData.EnumerateArray())
+                if (!isOllama)
                 {
-                    embeddings.Add(value.GetSingle());
+                    _httpClient.DefaultRequestHeaders.Add("Authorization", $"Bearer {_apiKey}");
                 }
 
-                return embeddings.ToArray();
+                const int maxRetries = 3;
+                int retryCount = 0;
+
+                while (retryCount < maxRetries)
+                {
+                    try
+                    {
+                        var response = await _httpClient.PostAsync(_apiUrl, content);
+                        response.EnsureSuccessStatusCode();
+
+                        var responseBody = await response.Content.ReadAsStringAsync();
+                        var responseObject = JsonSerializer.Deserialize<JsonElement>(responseBody);
+
+                        if (isOllama)
+                        {
+                            var embeddingData = responseObject.GetProperty("embedding");
+                            var embeddings = new List<float>();
+
+                            foreach (var value in embeddingData.EnumerateArray())
+                            {
+                                embeddings.Add(value.GetSingle());
+                            }
+
+                            return embeddings.ToArray();
+                        }
+                        else
+                        {
+                            var embeddingData = responseObject
+                                .GetProperty("data")[0]
+                                .GetProperty("embedding");
+
+                            var embeddings = new List<float>();
+                            foreach (var value in embeddingData.EnumerateArray())
+                            {
+                                embeddings.Add(value.GetSingle());
+                            }
+
+                            _logger.LogInformation($"Successfully generated embeddings with dimension: {embeddings.Count}");
+                            return embeddings.ToArray();
+                        }
+                    }
+                    catch (HttpRequestException ex) when (ex.StatusCode == System.Net.HttpStatusCode.TooManyRequests)
+                    {
+                        retryCount++;
+                        _logger.LogWarning($"Rate limited by API. Retry attempt {retryCount} of {maxRetries}");
+                        await Task.Delay(2000 * retryCount);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Error in API call to get embeddings");
+                        throw;
+                    }
+                }
+
+                throw new Exception("Maximum retry count exceeded when calling embeddings API");
             }
             catch (Exception ex)
             {
@@ -95,6 +162,8 @@ namespace CodeVault.Services
         {
             try
             {
+                _logger.LogInformation($"Storing embeddings for code snippet ID {codeSnippet.Id}");
+
                 // Check if embeddings already exist for this code snippet
                 var existing = await _dbContext.CodeEmbeddings
                     .FirstOrDefaultAsync(ke => ke.CodeSnippetId == codeSnippet.Id);
@@ -102,40 +171,47 @@ namespace CodeVault.Services
                 if (existing != null)
                 {
                     _logger.LogInformation($"Updating embeddings for code snippet ID {codeSnippet.Id}");
-                    // Delete the existing embeddings if the code snippet has been updated
                     _dbContext.CodeEmbeddings.Remove(existing);
                     await _dbContext.SaveChangesAsync();
                 }
 
-                // Combine title, language, description and content for better context
-                var text = $"Title: {codeSnippet.Title}\nLanguage: {codeSnippet.Language}\nDescription: {codeSnippet.Description}\n\n{codeSnippet.Content}";
+                var text = $"Title: {codeSnippet.Title}\nLanguage: {codeSnippet.Language}\n";
+
+                if (!string.IsNullOrEmpty(codeSnippet.Description))
+                {
+                    text += $"Description: {codeSnippet.Description}\n";
+                }
+
+                text += $"\n{codeSnippet.Content}";
+
                 if (!string.IsNullOrEmpty(codeSnippet.TagString))
                 {
                     text += $"\nTags: {codeSnippet.TagString}";
                 }
 
-                // Get embeddings from OpenAI
+                const int maxChars = 8000;
+                if (text.Length > maxChars)
+                {
+                    text = text.Substring(0, maxChars);
+                    _logger.LogWarning($"Text truncated to {maxChars} characters for embedding generation");
+                }
+ 
                 var embeddingsArray = await GetEmbeddingsAsync(text);
 
-                // We need to store embeddings differently since we don't have a direct Vector type
-                // We'll use raw SQL to insert the embeddings properly
                 using (var connection = new NpgsqlConnection(_connectionString))
                 {
                     await connection.OpenAsync();
 
-                    // Enable the vector extension
                     using (var cmd = new NpgsqlCommand("CREATE EXTENSION IF NOT EXISTS vector", connection))
                     {
                         await cmd.ExecuteNonQueryAsync();
                     }
-
-                    // Insert the embeddings using a raw SQL query
                     string embeddingString = "[" + string.Join(",", embeddingsArray) + "]";
 
                     using (var cmd = new NpgsqlCommand(@"
-                INSERT INTO ""CodeEmbeddings"" (""CodeSnippetId"", ""Embedding"", ""CreatedAt"")
-                VALUES (@codeSnippetId, @embedding::vector, @createdAt)
-                RETURNING ""Id""", connection))
+                        INSERT INTO ""CodeEmbeddings"" (""CodeSnippetId"", ""Embedding"", ""CreatedAt"")
+                        VALUES (@codeSnippetId, @embedding::vector, @createdAt)
+                        RETURNING ""Id""", connection))
                     {
                         cmd.Parameters.AddWithValue("codeSnippetId", codeSnippet.Id);
                         cmd.Parameters.AddWithValue("embedding", embeddingString);
@@ -162,33 +238,31 @@ namespace CodeVault.Services
             }
         }
 
-        // Search for similar code snippets based on a query
         public async Task<List<CodeSnippet>> SearchSimilarCodeSnippetsAsync(string query, int limit = 5, string language = null)
         {
             try
             {
-                // Get embeddings for the query
-                var queryEmbeddings = await GetEmbeddingsAsync(query);
+                _logger.LogInformation($"Performing vector search for: {query}");
 
-                // Since we can't use EF Core directly for vector operations,
-                // we need to use raw SQL queries
+                if (string.IsNullOrWhiteSpace(query))
+                {
+                    return await GetFilteredSnippetsAsync(language, limit);
+                }
+
+                var queryEmbeddings = await GetEmbeddingsAsync(query);
                 var results = new List<CodeSnippet>();
 
                 using (var connection = new NpgsqlConnection(_connectionString))
                 {
                     await connection.OpenAsync();
 
-                    // Enable the vector extension
                     using (var cmd = new NpgsqlCommand("CREATE EXTENSION IF NOT EXISTS vector", connection))
                     {
                         await cmd.ExecuteNonQueryAsync();
                     }
 
-                    // Perform a cosine similarity search using a parameterized query
-                    // We'll convert the embedding array to a string representation
                     string embeddingString = "[" + string.Join(",", queryEmbeddings) + "]";
 
-                    // Build the SQL query based on whether a language filter is provided
                     string sqlQuery;
                     if (!string.IsNullOrEmpty(language))
                     {
@@ -250,30 +324,30 @@ namespace CodeVault.Services
                     }
                 }
 
+                _logger.LogInformation($"Vector search found {results.Count} results");
                 return results;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error searching similar code snippets");
-                // Fallback to basic search if vector search fails
+                _logger.LogError(ex, "Error in vector search for query: {Query}", query);
+
+                _logger.LogInformation("Falling back to basic search");
                 return await FallbackSearchAsync(query, limit, language);
             }
         }
 
-        // Fallback search method using basic text matching
-        private async Task<List<CodeSnippet>> FallbackSearchAsync(string query, int limit, string language)
+
+        private async Task<List<CodeSnippet>> FallbackSearchAsync(string query, int limit, string language = null)
         {
             try
             {
                 var dbQuery = _dbContext.CodeSnippets.AsQueryable();
 
-                // Apply language filter if provided
                 if (!string.IsNullOrEmpty(language))
                 {
                     dbQuery = dbQuery.Where(c => c.Language == language);
                 }
 
-                // Check for basic text matches
                 return await dbQuery
                     .Where(c => c.Title.Contains(query) ||
                                 c.Content.Contains(query) ||
@@ -285,9 +359,24 @@ namespace CodeVault.Services
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error in fallback search");
+                _logger.LogError(ex, "Error in fallback search for query: {Query}", query);
                 return new List<CodeSnippet>();
             }
+        }
+
+        private async Task<List<CodeSnippet>> GetFilteredSnippetsAsync(string language = null, int limit = 50)
+        {
+            var query = _dbContext.CodeSnippets.AsQueryable();
+
+            if (!string.IsNullOrEmpty(language))
+            {
+                query = query.Where(c => c.Language == language);
+            }
+
+            return await query
+                .OrderByDescending(c => c.CreatedAt)
+                .Take(limit)
+                .ToListAsync();
         }
     }
 }
