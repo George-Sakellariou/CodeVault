@@ -1,4 +1,3 @@
-// Load .env file first
 using CodeVault.Data;
 using CodeVault.Services;
 using Microsoft.AspNetCore.Cors.Infrastructure;
@@ -33,6 +32,15 @@ builder.Services.AddScoped<SecurityAnalysisService>();
 builder.Services.AddApiServices();
 builder.Services.AddControllers();
 
+// Add Swagger BEFORE building the app
+if (builder.Environment.IsDevelopment())
+{
+    builder.Services.AddSwaggerGen(c =>
+    {
+        c.SwaggerDoc("v1", new() { Title = "CodeVault API", Version = "v1" });
+    });
+}
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -59,17 +67,11 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-if (app.Environment.IsDevelopment())
-{
-    builder.Services.AddSwaggerGen(c =>
-    {
-        c.SwaggerDoc("v1", new() { Title = "CodeVault API", Version = "v1" });
-    });
-}
-
 app.UseStaticFiles();
 
 app.UseRouting();
+
+// Configure Swagger UI AFTER building the app
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
