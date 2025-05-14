@@ -3,6 +3,7 @@ using CodeVault.Data;
 using CodeVault.Services;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using CodeVault.Extensions;
 
 DotNetEnv.Env.Load();
 
@@ -29,6 +30,8 @@ builder.Services.AddScoped<VectorEmbeddingService>();
 builder.Services.AddScoped<CodeAnalysisService>();
 builder.Services.AddScoped<CodeComparisonService>();
 builder.Services.AddScoped<SecurityAnalysisService>();
+builder.Services.AddApiServices();
+builder.Services.AddControllers();
 
 var app = builder.Build();
 
@@ -56,9 +59,25 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+if (app.Environment.IsDevelopment())
+{
+    builder.Services.AddSwaggerGen(c =>
+    {
+        c.SwaggerDoc("v1", new() { Title = "CodeVault API", Version = "v1" });
+    });
+}
+
 app.UseStaticFiles();
 
 app.UseRouting();
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "CodeVault API v1"));
+}
+
+app.UseCors("ApiCorsPolicy");
+app.MapControllers();
 
 app.UseAuthorization();
 
