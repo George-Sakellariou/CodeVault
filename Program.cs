@@ -13,10 +13,7 @@ if (builder.Environment.IsDevelopment())
     builder.Configuration.AddUserSecrets<Program>();
 }
 
-// Add environment variables from .env to configuration
 builder.Configuration.AddEnvironmentVariables();
-
-// Add services to the container.
 builder.Services.AddControllersWithViews();
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<IOpenAiService, OpenAiService>();
@@ -32,7 +29,6 @@ builder.Services.AddScoped<SecurityAnalysisService>();
 builder.Services.AddApiServices();
 builder.Services.AddControllers();
 
-// Add Swagger BEFORE building the app
 if (builder.Environment.IsDevelopment())
 {
     builder.Services.AddSwaggerGen(c =>
@@ -43,7 +39,6 @@ if (builder.Environment.IsDevelopment())
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
@@ -71,7 +66,6 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
-// Configure Swagger UI AFTER building the app
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
