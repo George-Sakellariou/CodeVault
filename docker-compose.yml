@@ -36,9 +36,9 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      - ASPNETCORE_ENVIRONMENT=Development
-      - OpenAI__ApiKey=${OPENAI_API_KEY}
-      - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=code_vault;Username=codevault-user;Password=securepass123!
+    - ASPNETCORE_ENVIRONMENT=Development
+    - OpenAI__ApiKey=${OPENAI_API_KEY}
+    - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=code_vault;Username=codevault-user;Password=securepass123!
     ports:
       - "8080:8080"  
       - "8081:8081"
