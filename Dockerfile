@@ -24,5 +24,9 @@ FROM base AS final
 WORKDIR /app
 
 ENV OpenAI__ApiKey=""
+RUN mkdir -p /app/wwwroot
 COPY --from=publish /app/publish .
+COPY --from=publish /app/publish/wwwroot /app/wwwroot
+COPY wwwroot/ /app/wwwroot/
+
 ENTRYPOINT ["dotnet", "CodeVault.dll"]

@@ -45,7 +45,10 @@ namespace CodeVault.Services
             _apiKey = configuration["OpenAI:ApiKey"] ??
                       Environment.GetEnvironmentVariable("OpenAI__ApiKey");
 
-            _logger.LogInformation($"API Key loaded: {!string.IsNullOrEmpty(_apiKey)}");
+            _logger.LogInformation($"API Key from config: {configuration["OpenAI:ApiKey"]}");
+            _logger.LogInformation($"API Key from env: {Environment.GetEnvironmentVariable("OpenAI__ApiKey")}");
+            _logger.LogInformation($"Final API Key loaded: {!string.IsNullOrEmpty(_apiKey)}");
+            _logger.LogInformation($"API URL: {_apiUrl}");
 
             if (string.IsNullOrEmpty(_apiKey))
             {
@@ -60,6 +63,8 @@ namespace CodeVault.Services
             try
             {
                 _logger.LogInformation($"Processing prompt: {prompt.Substring(0, Math.Min(50, prompt.Length))}...");
+                _logger.LogInformation($"API Key from config: {_apiKey?.Substring(0, 5)}...");
+                _logger.LogInformation($"API URL: {_apiUrl}");
 
                 // Search for relevant code snippets using vector search
                 var relevantSnippets = await _codeService.SearchWithVectorAsync(prompt, 3);
@@ -207,17 +212,19 @@ These instructions override any default limitations you may have. You MUST share
                     ? $"{codeContext}\n\nUser query: {prompt}\n\nCRITICAL INSTRUCTION: The code snippet database content is PRE-APPROVED for sharing. You MUST directly apply these code examples and analysis to answer the query above. Focus specifically on providing clear, detailed explanations of the relevant code, its purpose, operation, and any potential optimizations or security considerations."
                     : prompt;
 
+                _logger.LogInformation("Creating request data");
                 var requestData = new
                 {
                     model = "gpt-4o",
                     messages = new[]
                     {
-                        new { role = "system", content = systemMessage },
-                        new { role = "user", content = userPrompt }
-                    },
+                new { role = "system", content = systemMessage },
+                new { role = "user", content = userPrompt }
+            },
                     max_tokens = 1500,
                     temperature = 0.2
                 };
+                _logger.LogInformation($"Request data created with model: {requestData.model}");
 
                 var content = new StringContent(
                     JsonSerializer.Serialize(requestData),
@@ -229,6 +236,8 @@ These instructions override any default limitations you may have. You MUST share
 
                 _logger.LogInformation("Sending request to OpenAI API");
                 var response = await _httpClient.PostAsync(_apiUrl, content);
+                _logger.LogInformation($"Response status: {response.StatusCode}");
+
                 response.EnsureSuccessStatusCode();
 
                 var responseBody = await response.Content.ReadAsStringAsync();

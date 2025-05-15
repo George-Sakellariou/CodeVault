@@ -15,6 +15,15 @@ if (builder.Environment.IsDevelopment())
 
 builder.Configuration.AddEnvironmentVariables();
 builder.Services.AddControllersWithViews();
+
+// Add JSON options to handle circular references
+builder.Services.AddControllersWithViews()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+    });
+
 builder.Services.AddHttpClient();
 builder.Services.AddScoped<IOpenAiService, OpenAiService>();
 builder.Services.AddDbContext<CodeDbContext>(options =>

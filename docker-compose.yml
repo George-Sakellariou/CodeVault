@@ -42,6 +42,8 @@ services:
     ports:
       - "8080:8080"  
       - "8081:8081"
+    volumes:
+      - ./wwwroot:/app/wwwroot
     networks:
       - codevault-network
 
