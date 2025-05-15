@@ -208,11 +208,11 @@ namespace CodeVault.Services
             // Base score of 100
             int score = 100;
 
-            // Deduct points based on severity
-            score -= critical * 20;
-            score -= high * 10;
-            score -= medium * 5;
-            score -= low * 2;
+            // Deduct more points for each issue type
+            score -= critical * 25;  
+            score -= high * 15;      
+            score -= medium * 8;     
+            score -= low * 4;        
 
             // Ensure score is between 0 and 100
             return Math.Max(0, Math.Min(100, score));
@@ -272,7 +272,7 @@ namespace CodeVault.Services
             var findings = new List<SecurityFinding>();
 
             // Check for potential API keys
-            var apiKeyMatches = Regex.Matches(code, @"(?:api|access)[_\-]?(?:key|token)[_\-]?(?:=|\s*[:=]\s*)[""']([a-zA-Z0-9_\-\.]{16,64})[""']", RegexOptions.IgnoreCase);
+            var apiKeyMatches = Regex.Matches(code, @"(?:api|access|secret|auth|jwt|token|key)[\w_\-]*\s*(?:=|:)\s*['""]([A-Za-z0-9_\-\.=]{8,})['""]", RegexOptions.IgnoreCase);
 
             foreach (Match match in apiKeyMatches)
             {
@@ -290,7 +290,7 @@ namespace CodeVault.Services
             }
 
             // Check for passwords
-            var passwordMatches = Regex.Matches(code, @"(?:password|passwd|pwd)[_\-]?(?:=|\s*[:=]\s*)[""']([^""']{4,64})[""']", RegexOptions.IgnoreCase);
+            var passwordMatches = Regex.Matches(code, @"(?:password|passwd|pwd|secret|credentials)[\w_\-]*\s*(?:=|:)\s*['""]([^'""]{4,})['""]", RegexOptions.IgnoreCase);
 
             foreach (Match match in passwordMatches)
             {
