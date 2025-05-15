@@ -1,0 +1,319 @@
+﻿@model CodeSnippet
+@{
+    ViewData["Title"] = "Code Analysis Tool";
+    var snippetId = Model?.Id ?? 0;
+    var complexityAnalysis = ViewBag.ComplexityAnalysis as string;
+    var optimizationInfo = ViewBag.OptimizationInfo as string;
+}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex align-items-center justify-content-between mb-4">
+                <div>
+                    <h2 class="mb-1">Code Analysis Tool</h2>
+                    <p class="text-muted">Analyze code complexity, metrics, and optimization opportunities</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card shadow-sm border-0 rounded-4 mb-4">
+        <div class="card-body">
+            <form asp-action="Analyze" method="post">
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="mb-3">
+                            <label for="snippetId" class="form-label">Code Snippet ID</label>
+                            <div class="input-group">
+                                <input type="number" class="form-control" id="snippetId" name="snippetId" value="@(snippetId != 0 ? snippetId.ToString() : "")" placeholder="Enter ID of code snippet to analyze" required>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="bi bi-graph-up me-2"></i>Analyze
+                                </button>
+                            </div>
+                            <div class="form-text">Enter the ID of an existing code snippet from your repository</div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    @if (Model != null && snippetId != 0)
+    {
+        <div class="row">
+            <div class="col-lg-7 mb-4">
+                <div class="card shadow-sm border-0 rounded-4">
+                    <div class="card-header bg-white p-3 d-flex justify-content-between align-items-center">
+                        <h5 class="m-0">@Model.Title</h5>
+                        <div class="lang-indicator @GetLanguageClass(Model.Language)">@Model.Language</div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="code-preview">
+                            <pre><code class="language-@GetLanguageClass(Model.Language).Replace("lang-", "")">@Model.Content</code></pre>
+                        </div>
+                    </div>
+                    <div class="card-footer bg-white border-top p-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="text-muted small">
+                                <i class="bi bi-clock me-1"></i> Created @FormatDate(Model.CreatedAt)
+                                @if (Model.UpdatedAt.HasValue)
+                                {
+                                    <span class="ms-3"><i class="bi bi-pencil me-1"></i> Updated @FormatDate(Model.UpdatedAt.Value)</span>
+                                }
+                            </div>
+                            <a asp-controller="CodeView" asp-action="Details" asp-route-id="@Model.Id" class="btn btn-sm btn-outline-primary">
+                                <i class="bi bi-box-arrow-up-right me-1"></i>View Full Details
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-5 mb-4">
+                <div class="card shadow-sm border-0 rounded-4 mb-4">
+                    <div class="card-header bg-white p-3">
+                        <h5 class="m-0"><i class="bi bi-speedometer me-2"></i>Complexity Analysis</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (!string.IsNullOrEmpty(complexityAnalysis))
+                        {
+                            <div class="analysis-result">
+                                @foreach (var line in complexityAnalysis.Split('\n'))
+                                {
+                                    if (line.StartsWith("Cyclomatic Complexity:"))
+                                    {
+                                        <div class="d-flex align-items-center mb-3">
+                                            <div class="flex-grow-1">
+                                                <strong>@line.Split(':')[0]:</strong>
+                                                <span class="ms-1">@line.Split(':')[1].Trim()</span>
+                                            </div>
+                                            <div class="ms-3">
+                                                @{
+                                                    string metricValue = line.Split(':')[1].Trim();
+                                                    int complexity = 0;
+                                                    int.TryParse(metricValue, out complexity);
+                                                    string badgeClass = "bg-success";
+
+                                                    if (complexity > 15) badgeClass = "bg-danger";
+                                                    else if (complexity > 10) badgeClass = "bg-warning text-dark";
+                                                    else if (complexity > 5) badgeClass = "bg-info text-dark";
+                                                }
+                                                <span class="badge @badgeClass">@GetComplexityLabel(complexity)</span>
+                                            </div>
+                                        </div>
+                                    }
+                                    else if (line.StartsWith("Complexity Level:"))
+                                    {
+                                        <div class="alert alert-secondary">
+                                            @line
+                                        </div>
+                                    }
+                                    else if (!string.IsNullOrWhiteSpace(line))
+                                    {
+                                        <div class="mb-2">
+                                            @line
+                                        </div>
+                                    }
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle me-2"></i>Complexity analysis will appear here after you analyze the code snippet.
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="card shadow-sm border-0 rounded-4">
+                    <div class="card-header bg-white p-3">
+                        <h5 class="m-0"><i class="bi bi-lightning me-2"></i>Optimization Opportunities</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (!string.IsNullOrEmpty(optimizationInfo))
+                        {
+                            <div class="optimization-result">
+                                @{
+                                    bool hasMetrics = false;
+                                    bool hasSuggestions = false;
+
+                                    if (optimizationInfo.Contains("Performance Metrics:"))
+                                    {
+                                        hasMetrics = true;
+                                        <h6 class="mb-3">Performance Metrics</h6>
+                                        <ul class="list-group mb-4">
+                                            @foreach (var line in optimizationInfo.Split('\n'))
+                                            {
+                                                if (line.StartsWith("- ") && optimizationInfo.IndexOf("Performance Metrics:") < optimizationInfo.IndexOf(line)
+                                                && (!optimizationInfo.Contains("Optimization Suggestions:") || optimizationInfo.IndexOf("Optimization Suggestions:") > optimizationInfo.IndexOf(line)))
+                                                {
+                                                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                                                        @line.Substring(2)
+                                                    </li>
+                                                }
+                                                else if (line.StartsWith("  Note:"))
+                                                {
+                                                    <li class="list-group-item list-group-item-light">
+                                                        <small class="text-muted">@line.Substring(2)</small>
+                                                    </li>
+                                                }
+                                            }
+                                        </ul>
+                                    }
+
+                                    if (optimizationInfo.Contains("Optimization Suggestions:"))
+                                    {
+                                        hasSuggestions = true;
+                                        <h6 class="mb-3">Suggestions for Improvement</h6>
+                                        <ul class="list-group">
+                                            @foreach (var line in optimizationInfo.Split('\n'))
+                                            {
+                                                if (line.StartsWith("- ") && optimizationInfo.IndexOf("Optimization Suggestions:") < optimizationInfo.IndexOf(line))
+                                                {
+                                                    <li class="list-group-item">
+                                                        <i class="bi bi-lightbulb text-warning me-2"></i>
+                                                        @line.Substring(2)
+                                                    </li>
+                                                }
+                                            }
+                                        </ul>
+                                    }
+
+                                    if (!hasMetrics && !hasSuggestions)
+                                    {
+                                        <p>@optimizationInfo</p>
+                                    }
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle me-2"></i>Optimization suggestions will appear here after you analyze the code snippet.
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="text-center py-5 bg-light rounded-4 shadow-sm">
+            <i class="bi bi-graph-up mb-3" style="font-size: 3rem; color: #4e54c8;"></i>
+            <h4>Enter a Snippet ID to Analyze</h4>
+            <p class="text-muted">The tool will analyze code complexity, structure, and suggest optimizations.</p>
+            <div class="mt-4">
+                <h5>What You'll Get</h5>
+                <div class="row mt-3">
+                    <div class="col-md-4">
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h6><i class="bi bi-speedometer2 me-2"></i>Complexity Metrics</h6>
+                                <p class="small text-muted">Measure cyclomatic complexity, nesting depth, and other key metrics.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h6><i class="bi bi-lightning me-2"></i>Optimization Tips</h6>
+                                <p class="small text-muted">Get suggestions to improve code performance and readability.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h6><i class="bi bi-check2-square me-2"></i>Quality Assessment</h6>
+                                <p class="small text-muted">Understand overall code quality and structure at a glance.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p class="mt-3">
+                <a asp-controller="CodeView" asp-action="Index" class="btn btn-outline-primary">
+                    <i class="bi bi-code-slash me-2"></i>Browse Code Snippets
+                </a>
+            </p>
+        </div>
+    }
+</div>
+@functions {
+    private string GetLanguageClass(string language)
+    {
+        language = language?.ToLower() ?? "txt";
+        switch (language)
+        {
+            case "javascript": return "lang-js";
+            case "typescript": return "lang-ts";
+            case "python": return "lang-py";
+            case "c#": return "lang-cs";
+            case "java": return "lang-java";
+            case "php": return "lang-php";
+            case "html": return "lang-html";
+            case "css": return "lang-css";
+            case "ruby": return "lang-ruby";
+            case "go": return "lang-go";
+            case "rust": return "lang-rust";
+            case "sql": return "lang-sql";
+            case "shell":
+            case "bash": return "lang-bash";
+            default: return "lang-" + language;
+        }
+    }
+
+    private string FormatDate(DateTime date)
+    {
+        var timeSpan = DateTime.Now - date;
+
+        if (timeSpan.TotalDays < 1)
+        {
+            if (timeSpan.TotalHours < 1)
+                return $"{(int)timeSpan.TotalMinutes} min ago";
+            else
+                return $"{(int)timeSpan.TotalHours} hours ago";
+        }
+        else if (timeSpan.TotalDays < 7)
+        {
+            return $"{(int)timeSpan.TotalDays} days ago";
+        }
+        else
+        {
+            return date.ToString("MMM d, yyyy");
+        }
+    }
+
+    private string GetComplexityLabel(int complexity)
+    {
+        if (complexity <= 5) return "Low";
+        if (complexity <= 10) return "Moderate";
+        if (complexity <= 15) return "High";
+        return "Very High";
+    }
+}
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+        // Initialize syntax highlighting for code blocks
+        document.querySelectorAll('pre code').forEach((block) => {
+        hljs.highlightBlock(block);
+        });
+        });
+    </script>
+    <style>
+        .code-preview {
+            max-height: 400px;
+            overflow: auto;
+        }
+
+        .optimization-result li {
+            transition: transform 0.2s ease;
+        }
+
+            .optimization-result li:hover {
+                transform: translateX(5px);
+            }
+    </style>
+}

@@ -1,0 +1,289 @@
+﻿@model Tuple<CodeSnippet, CodeSnippet>
+@{
+    ViewData["Title"] = "Code Comparison Tool";
+    var snippet1 = Model?.Item1 ?? new CodeSnippet { Id = 0, Title = "", Content = "", Language = "", Description = "" };
+    var snippet2 = Model?.Item2 ?? new CodeSnippet { Id = 0, Title = "", Content = "", Language = "", Description = "" };
+
+    var comparisonResult = ViewBag.ComparisonResult as string;
+}
+<div class="container py-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="d-flex align-items-center justify-content-between mb-4">
+                <div>
+                    <h2 class="mb-1">Code Comparison Tool</h2>
+                    <p class="text-muted">Compare two code snippets to analyze similarities and differences</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="card shadow-sm border-0 rounded-4 mb-4">
+        <div class="card-body">
+            <form asp-action="Compare" method="post">
+                <div class="row">
+                    <div class="col-md-5">
+                        <div class="mb-3">
+                            <label for="snippetId1" class="form-label">First Snippet ID</label>
+                            <input type="number" class="form-control" id="snippetId1" name="snippetId1" value="@(snippet1.Id != 0 ? snippet1.Id.ToString() : "")" placeholder="Enter ID of first snippet" required>
+                        </div>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-center justify-content-center">
+                        <div class="text-center pb-3">
+                            <i class="bi bi-arrow-left-right" style="font-size: 1.5rem;"></i>
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <div class="mb-3">
+                            <label for="snippetId2" class="form-label">Second Snippet ID</label>
+                            <input type="number" class="form-control" id="snippetId2" name="snippetId2" value="@(snippet2.Id != 0 ? snippet2.Id.ToString() : "")" placeholder="Enter ID of second snippet" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="d-grid mt-3">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-code-slash me-2"></i>Compare Code Snippets
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    @if (Model != null && snippet1.Id != 0 && snippet2.Id != 0)
+    {
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                <div class="card shadow-sm border-0 rounded-4 h-100">
+                    <div class="card-header bg-white p-3 d-flex justify-content-between align-items-center">
+                        <h5 class="m-0">@snippet1.Title</h5>
+                        <div class="lang-indicator @GetLanguageClass(snippet1.Language)">@snippet1.Language</div>
+                    </div>
+                    <div class="card-body">
+                        <pre><code class="language-@GetLanguageClass(snippet1.Language).Replace("lang-", "")">@snippet1.Content</code></pre>
+                        @if (!string.IsNullOrEmpty(snippet1.Description))
+                        {
+                            <div class="mt-3">
+                                <h6>Description</h6>
+                                <p>@snippet1.Description</p>
+                            </div>
+                        }
+                    </div>
+                    <div class="card-footer bg-white border-top">
+                        <a asp-controller="CodeView" asp-action="Details" asp-route-id="@snippet1.Id" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-box-arrow-up-right me-1"></i>View Full Details
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6 mb-4">
+                <div class="card shadow-sm border-0 rounded-4 h-100">
+                    <div class="card-header bg-white p-3 d-flex justify-content-between align-items-center">
+                        <h5 class="m-0">@snippet2.Title</h5>
+                        <div class="lang-indicator @GetLanguageClass(snippet2.Language)">@snippet2.Language</div>
+                    </div>
+                    <div class="card-body">
+                        <pre><code class="language-@GetLanguageClass(snippet2.Language).Replace("lang-", "")">@snippet2.Content</code></pre>
+                        @if (!string.IsNullOrEmpty(snippet2.Description))
+                        {
+                            <div class="mt-3">
+                                <h6>Description</h6>
+                                <p>@snippet2.Description</p>
+                            </div>
+                        }
+                    </div>
+                    <div class="card-footer bg-white border-top">
+                        <a asp-controller="CodeView" asp-action="Details" asp-route-id="@snippet2.Id" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-box-arrow-up-right me-1"></i>View Full Details
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm border-0 rounded-4 mb-4">
+            <div class="card-header bg-white p-3">
+                <h5 class="m-0"><i class="bi bi-file-diff me-2"></i>Comparison Results</h5>
+            </div>
+            <div class="card-body">
+                @if (!string.IsNullOrEmpty(comparisonResult))
+                {
+                    <div class="comparison-result markdown-content">
+                        @Html.Raw(FormatMarkdown(comparisonResult))
+                    </div>
+                }
+                else
+                {
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>Comparison analysis will appear here after you compare two code snippets.
+                    </div>
+                }
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="text-center py-5 bg-light rounded-4 shadow-sm">
+            <i class="bi bi-file-diff mb-3" style="font-size: 3rem; color: #4e54c8;"></i>
+            <h4>Enter Two Snippet IDs to Compare</h4>
+            <p class="text-muted">The tool will analyze code structure, complexity, and similarities between the snippets.</p>
+            <div class="mt-4">
+                <h5>Benefits of Code Comparison</h5>
+                <div class="row mt-3">
+                    <div class="col-md-4">
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h6><i class="bi bi-search me-2"></i>Identify Similarities</h6>
+                                <p class="small text-muted">Find common patterns and duplicate code across snippets.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h6><i class="bi bi-lightning me-2"></i>Optimize Performance</h6>
+                                <p class="small text-muted">Compare efficiency between different implementations.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h6><i class="bi bi-check-circle me-2"></i>Improve Code Quality</h6>
+                                <p class="small text-muted">Identify best practices by comparing alternative approaches.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <p class="mt-3">
+                <a asp-controller="CodeView" asp-action="Index" class="btn btn-outline-primary">
+                    <i class="bi bi-code-slash me-2"></i>Browse Code Snippets
+                </a>
+            </p>
+        </div>
+    }
+</div>
+@functions {
+    private string GetLanguageClass(string language)
+    {
+        language = language?.ToLower() ?? "txt";
+        switch (language)
+        {
+            case "javascript": return "lang-js";
+            case "typescript": return "lang-ts";
+            case "python": return "lang-py";
+            case "c#": return "lang-cs";
+            case "java": return "lang-java";
+            case "php": return "lang-php";
+            case "html": return "lang-html";
+            case "css": return "lang-css";
+            case "ruby": return "lang-ruby";
+            case "go": return "lang-go";
+            case "rust": return "lang-rust";
+            case "sql": return "lang-sql";
+            case "shell":
+            case "bash": return "lang-bash";
+            default: return "lang-" + language;
+        }
+    }
+
+    private string FormatMarkdown(string markdown)
+    {
+        if (string.IsNullOrEmpty(markdown))
+            return "";
+
+        // Replace markdown headers
+        markdown = System.Text.RegularExpressions.Regex.Replace(markdown, @"^# (.*?)$", "<h3>$1</h3>", System.Text.RegularExpressions.RegexOptions.Multiline);
+        markdown = System.Text.RegularExpressions.Regex.Replace(markdown, @"^## (.*?)$", "<h4>$1</h4>", System.Text.RegularExpressions.RegexOptions.Multiline);
+        markdown = System.Text.RegularExpressions.Regex.Replace(markdown, @"^### (.*?)$", "<h5>$1</h5>", System.Text.RegularExpressions.RegexOptions.Multiline);
+
+        // Replace markdown bold
+        markdown = System.Text.RegularExpressions.Regex.Replace(markdown, @"\*\*(.*?)\*\*", "<strong>$1</strong>");
+
+        // Replace markdown italic
+        markdown = System.Text.RegularExpressions.Regex.Replace(markdown, @"\*(.*?)\*", "<em>$1</em>");
+
+        // Replace markdown tables
+        markdown = System.Text.RegularExpressions.Regex.Replace(markdown,
+            @"^\|(.*)\|$\n^\|([-|]+)\|$",
+            "<table class=\"table table-striped\"><thead><tr>$1</tr></thead><tbody>",
+            System.Text.RegularExpressions.RegexOptions.Multiline);
+
+        markdown = System.Text.RegularExpressions.Regex.Replace(markdown,
+            @"\|(.*?)\|",
+            "<td>$1</td>",
+            System.Text.RegularExpressions.RegexOptions.Singleline);
+
+        markdown = System.Text.RegularExpressions.Regex.Replace(markdown,
+            @"<td>---</td>",
+            "</tr>",
+            System.Text.RegularExpressions.RegexOptions.Singleline);
+
+        markdown = System.Text.RegularExpressions.Regex.Replace(markdown,
+            @"<tr>(.*?)</tr>",
+            "<tr>$1</tr>",
+            System.Text.RegularExpressions.RegexOptions.Singleline);
+
+        // Replace markdown lists
+        markdown = System.Text.RegularExpressions.Regex.Replace(markdown,
+            @"^([\s]*)\* (.*?)$",
+            "$1<li>$2</li>",
+            System.Text.RegularExpressions.RegexOptions.Multiline);
+
+        markdown = "<ul>" + markdown + "</ul>";
+        markdown = System.Text.RegularExpressions.Regex.Replace(markdown,
+            @"<\/ul>[\s]*<li>",
+            "<li>",
+            System.Text.RegularExpressions.RegexOptions.Singleline);
+
+        markdown = System.Text.RegularExpressions.Regex.Replace(markdown,
+            @"<\/li>[\s]*<\/li>",
+            "</li>",
+            System.Text.RegularExpressions.RegexOptions.Singleline);
+
+        markdown = System.Text.RegularExpressions.Regex.Replace(markdown,
+            @"<\/li>[\s]*<ul>",
+            "</li></ul>",
+            System.Text.RegularExpressions.RegexOptions.Singleline);
+
+        // Replace line breaks with <br>
+        markdown = markdown.Replace("\n", "<br>");
+
+        return markdown;
+    }
+}
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+        // Initialize syntax highlighting for code blocks
+        document.querySelectorAll('pre code').forEach((block) => {
+        hljs.highlightBlock(block);
+        });
+        });
+    </script>
+    <style>
+        .comparison-result h4, .comparison-result h5 {
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            color: #333;
+        }
+
+        .comparison-result ul {
+            padding-left: 1.5rem;
+        }
+
+        .comparison-result li {
+            margin-bottom: 0.5rem;
+        }
+
+        .comparison-result table {
+            margin: 1rem 0;
+        }
+
+        pre {
+            max-height: 350px;
+            overflow: auto;
+            margin-bottom: 0;
+        }
+    </style>
+}
