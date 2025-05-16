@@ -556,10 +556,6 @@ Error: `OpenAI API key is not configured`
 
 Solution: Check your API key is set in appsettings.json, environment variables, or user secrets.
 
-## Contributing
-
-We welcome contributions to CodeVault! See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
-
 ### Development Setup
 
 1. Fork and clone the repository
