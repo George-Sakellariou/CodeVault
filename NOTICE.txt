@@ -1,0 +1,13 @@
+CodeVault
+Copyright 2025 George-Sakellariou
+
+This product includes software developed by George-Sakellariou.
+
+This software includes the following third-party components:
+- Bootstrap (MIT License) - https://getbootstrap.com/
+- jQuery (MIT License) - https://jquery.com/
+- highlight.js (BSD License) - https://highlightjs.org/
+- DotNetEnv (MIT License) - https://github.com/tonerdo/dotnet-env
+- Npgsql (PostgreSQL License) - https://github.com/npgsql/npgsql
+- OpenAI-DotNet (MIT License) - https://github.com/RageAgainstThePixel/OpenAI-DotNet
+- Swashbuckle.AspNetCore (MIT License) - https://github.com/domaindrivendev/Swashbuckle.AspNetCore
