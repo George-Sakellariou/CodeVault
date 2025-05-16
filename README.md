@@ -59,12 +59,12 @@ CodeVault is a comprehensive platform for developers to store, organize, and ana
 
 <div align="center">
   <p><strong>AI Chat Interface</strong></p>
-  <img src="docs/images/chat-screenshot.png" alt="CodeVault AI Chat" width="800"/>
+  <img src="docs/images/Screenshot 2025-05-16 104446.png" alt="CodeVault AI Chat" width="800"/>
 </div>
 
 <div align="center">
   <p><strong>Code Snippet Repository</strong></p>
-  <img src="docs/images/snippets-screenshot.png" alt="CodeVault Code Snippets" width="800"/>
+  <img src="docs/images/Screenshot 2025-05-16 104801.png" alt="CodeVault Code Snippets Repository" width="800"/>
 </div>
 
 ## Getting Started
