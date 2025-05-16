@@ -1,10 +1,6 @@
 # CodeVault
 
 <p align="center">
-  <img src="docs/images/logo.png" alt="CodeVault Logo" width="200"/>
-</p>
-
-<p align="center">
   <strong>AI-powered code knowledge management system</strong><br>
   Store, search, analyze, and improve your code with semantic search and AI assistance
 </p>
@@ -84,7 +80,7 @@ CodeVault is a comprehensive platform for developers to store, organize, and ana
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/codevault.git
+git clone https://github.com/George-Sakellariou/codevault.git
 cd codevault
 ```
 
@@ -581,7 +577,3 @@ dotnet watch run
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
 
 ---
-
-<p align="center">
-  Made with ❤️ by the CodeVault Team
-</p>
