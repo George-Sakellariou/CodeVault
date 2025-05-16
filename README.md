@@ -101,7 +101,7 @@ docker-compose up -d
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/codevault.git
+git clone https://github.com/George-Sakellariou/codevault.git
 cd codevault
 ```
 
