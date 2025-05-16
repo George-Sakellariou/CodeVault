@@ -6,6 +6,14 @@
 *.userosscache
 *.sln.docstates
 *.userprefs
+*.aps
+*.ncb
+*.opendb
+*.opensdf
+*.sdf
+*.cachefile
+*.VC.db
+*.VC.VC.opendb
 
 # Build results
 [Dd]ebug/
@@ -18,9 +26,71 @@ bld/
 [Bb]in/
 [Oo]bj/
 [Ll]og/
+[Ll]ogs/
+
+# Visual Studio Code
+.vscode/
+*.code-workspace
+
+# Rider / JetBrains
+.idea/
+*.sln.iml
+
+# .NET Core
+project.lock.json
+project.fragment.lock.json
+artifacts/
+ScaffoldingReadMe.txt
+
+# NuGet
+*.nupkg
+*.snupkg
+**/[Pp]ackages/*
+!**/[Pp]ackages/build/
+
+# StyleCop
+StyleCopReport.xml
+
+# SQL Server files
+*.mdf
+*.ldf
+*.ndf
+
+# Log files
+*.log
+logs/
+Log/
+
+# SQLite
+*.db
+*.sqlite
+*.sqlite3
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+ehthumbs_vista.db
+Desktop.ini
+
+# Docker
+.docker/data/
 
 # Other files that might cause issues
 *.tmp
 *.swp
 *~
 .env
+
+# Specific project files to ignore
+appsettings.json
+appsettings.Development.json
+Properties/launchSettings.json
+CodeVault.csproj
+CodeVault.http
+CodeVault.sln
