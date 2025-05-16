@@ -1,10 +1,6 @@
 # CodeVault
 
 <p align="center">
-  <img src="docs/images/logo.png" alt="CodeVault Logo" width="200"/>
-</p>
-
-<p align="center">
   <strong>AI-powered code knowledge management system</strong><br>
   Store, search, analyze, and improve your code with semantic search and AI assistance
 </p>
