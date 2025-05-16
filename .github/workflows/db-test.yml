@@ -1,0 +1,52 @@
+name: Database Tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: securepass123!
+          POSTGRES_USER: codevault-user
+          POSTGRES_DB: code_vault_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: 8.0.x
+
+    - name: Install pgvector extension
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y postgresql-client
+        PGPASSWORD=securepass123! psql -h localhost -U codevault-user -d code_vault_test -c "CREATE EXTENSION IF NOT EXISTS vector;"
+
+    - name: Restore dependencies
+      run: dotnet restore
+
+    - name: Build
+      run: dotnet build --no-restore
+
+    # Replace with actual test commands if you have database integration tests
+    - name: Test
+      run: echo "Add your database tests here"
+      env:
+        ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=code_vault_test;Username=codevault-user;Password=securepass123!"
