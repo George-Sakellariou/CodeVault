@@ -91,6 +91,3 @@ Desktop.ini
 appsettings.json
 appsettings.Development.json
 Properties/launchSettings.json
-CodeVault.csproj
-CodeVault.http
-CodeVault.sln
