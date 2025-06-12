@@ -1,6 +1,0 @@
-@CodeVault_HostAddress = http://localhost:5249
-
-GET {{CodeVault_HostAddress}}/weatherforecast/
-Accept: application/json
-
-###
